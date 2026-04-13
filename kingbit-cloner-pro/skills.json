@@ -1,0 +1,24 @@
+{
+  "schema": "https://openclaw.ai/skill/manifest/v1",
+  "skill": {
+    "name": "kingbit-cloner-pro",
+    "version": "2.0.0",
+    "description": "Full website cloning - download all CSS, JS, images and bundle into single HTML",
+    "author": "Kingbit",
+    "category": "utilities",
+    "tags": ["clone", "scrape", "web", "full", "bundle", "download"],
+    "permissions": ["http", "browser"],
+    "platforms": ["openclaw"],
+    "files": {
+      "main": "index.js",
+      "controller": "clone.js"
+    },
+    "commands": [
+      {
+        "name": "clone",
+        "description": "Full website cloning with all assets",
+        "usage": "/clone <url> --full or /clone <url> --inline"
+      }
+    ]
+  }
+}
