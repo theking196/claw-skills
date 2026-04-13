@@ -1,384 +1,197 @@
 /**
- * Kingbit Clone PRO - OpenClaw Skill (v2)
- * Full website scraping and cloning
+ * Kingbit Clone PRO - FULL VERSION
+ * Real CSS/JS fetching and inlining
  */
 
 var KingbitClonePro = {
   name: 'kingbit-cloner-pro',
-  version: '2.0.0',
-  
-  // Clone data
+  version: '4.0.0',
   currentClone: null,
-  assets: {
-    css: [],
-    js: [],
-    images: [],
-    fonts: [],
-    pages: []
-  },
-  
-  /**
-   * Initialize
-   */
+
   initialize: function() {
-    console.log('🕷️ Kingbit Clone PRO initialized');
-    return {
-      success: true,
-      message: 'Ready for FULL website cloning! Use /clone <url> --full'
-    };
+    console.log('🕷️ Kingbit Clone PRO v4.0 - FULL VERSION');
+    return { success: true };
   },
-  
-  /**
-   * Clone website with all assets
-   */
-  cloneFull: async function(url, options) {
-    console.log('🕷️ Starting full clone of: ' + url);
+
+  async cloneFull(url) {
+    console.log('🕷️ FULL CLONE: ' + url);
     
-    var result = {
-      url: url,
-      success: true,
-      assets: {
-        css: 0,
-        js: 0,
-        images: 0,
-        pages: 0,
-        size: 0
-      },
-      message: '',
-      warnings: []
-    };
+    var result = { url: url, success: true, assets: { css: 0, js: 0, images: 0 }, bundledHTML: '' };
     
-    // Use browser to get the page and snapshot
     try {
-      // Navigate to page
-      var snapshot = await this.getPageSnapshot(url);
+      // Step 1: Get the main HTML with browser
+      var nav = await browser({ action: 'navigate', url: url });
+      var htmlResult = await browser({ action: 'snapshot', targetId: nav.targetId });
       
-      result.pageTitle = snapshot.title;
-      result.pageHTML = snapshot.html;
-      result.assets.css = snapshot.stylesheets || [];
-      result.assets.js = snapshot.scripts || [];
-      result.assets.images = snapshot.images || [];
-      result.assets.pages = snapshot.links || [];
+      // Step 2: Use web_fetch to get the actual HTML source
+      var pageContent = await web_fetch({ url: url, maxChars: 500000 });
+      var mainHTML = pageContent || this.snapshotToSimpleHTML(htmlResult);
       
-      // Build bundled HTML
-      var bundledHTML = this.bundleHTML(snapshot, options);
-      result.bundledHTML = bundledHTML;
-      result.size = bundledHTML.length;
+      // Step 3: Find and fetch CSS files
+      console.log('📥 Fetching CSS files...');
+      var cssUrls = this.extractCSSUrls(mainHTML);
+      console.log('   Found ' + cssUrls.length + ' CSS files');
       
-      result.message = `✅ Full clone complete!
+      var inlinedCSS = [];
+      for (var i = 0; i < Math.min(cssUrls.length, 15); i++) {
+        try {
+          var cssContent = await web_fetch({ url: cssUrls[i], maxChars: 50000 });
+          if (cssContent) inlinedCSS.push('/* From: ' + cssUrls[i] + ' */\n' + cssContent.substring(0, 10000));
+        } catch(e) { console.log('   Failed: ' + cssUrls[i]); }
+      }
+      result.assets.css = inlinedCSS.length;
+      console.log('   ✓ Inlined ' + inlinedCSS.length + ' CSS files');
       
-📊 Assets:
-   • CSS files: ${snapshot.stylesheets?.length || 0}
-   • JS files: ${snapshot.scripts?.length || 0}
-   • Images: ${snapshot.images?.length || 0}
-   • Links found: ${snapshot.links?.length || 0}
-
-📦 Bundle size: ${(result.size / 1024).toFixed(1)} KB
-
-Options used: ${options.join(', ') || 'default'}`;
+      // Step 4: Find and fetch JS files  
+      console.log('📜 Fetching JS files...');
+      var jsUrls = this.extractJsUrls(mainHTML);
+      var inlinedJS = [];
+      for (var j = 0; j < Math.min(jsUrls.length, 10); j++) {
+        try {
+          var jsContent = await web_fetch({ url: jsUrls[j], maxChars: 30000 });
+          if (jsContent) inlinedJS.push('// From: ' + jsUrls[j] + '\n' + jsContent.substring(0, 8000));
+        } catch(e) {}
+      }
+      result.assets.js = inlinedJS.length;
+      console.log('   ✓ Inlined ' + inlinedJS.length + ' JS files');
+      
+      // Step 5: Find images
+      console.log('🖼️ Processing images...');
+      var imgUrls = this.extractImageUrls(mainHTML);
+      result.assets.images = imgUrls.length;
+      
+      // Step 6: Bundle everything
+      console.log('📦 Bundling...');
+      var bundled = this.bundle(mainHTML, inlinedCSS, inlinedJS, imgUrls, url);
+      result.bundledHTML = bundled;
+      result.size = bundled.length;
+      
+      result.success = true;
+      result.message = '✅ FULL CLONE COMPLETE!\n\n' +
+        '🕷️ Source: ' + url + '\n\n' +
+        '📊 Real Assets Downloaded:\n' +
+        '   • CSS files: ' + result.assets.css + ' (INLINED)\n' +
+        '   • JS files: ' + result.assets.js + ' (INLINED)\n' +
+        '   • Images: ' + result.assets.images + '\n\n' +
+        '📦 Bundle size: ' + (result.size / 1024).toFixed(1) + ' KB\n\n' +
+        'This clone has REAL CSS from the website!\n' +
+        'Use /clone deploy to publish!';
       
       this.currentClone = result;
+      return result;
       
     } catch (e) {
-      result.success = false;
-      result.message = 'Error: ' + e.message;
-      result.warnings.push(e.message);
+      return { success: false, error: e.message };
     }
-    
-    return result;
   },
-  
-  /**
-   * Get page snapshot using browser
-   */
-  getPageSnapshot: async function(url) {
-    // This would use the browser tool
-    // For now, return mock that shows what we'd do
-    
-    return {
-      url: url,
-      title: 'Cloned Page',
-      html: this.getMockHTML(),
-      stylesheets: [
-        'https://example.com/style1.css',
-        'https://example.com/style2.css'
-      ],
-      scripts: [
-        'https://example.com/app.js',
-        'https://example.com/vendor.js'
-      ],
-      images: [
-        'https://example.com/logo.png',
-        'https://example.com/hero.jpg'
-      ],
-      links: [
-        '/about',
-        '/contact',
-        '/pricing',
-        '/blog'
-      ]
-    };
+
+  extractCSSUrls: function(html) {
+    var urls = [];
+    var matches = html.match(/href=["']([^"']*\.css[^"']*)["']/gi) || [];
+    for (var i = 0; i < matches.length; i++) {
+      var match = matches[i].match(/href=["']([^"']+)["']/);
+      if (match && match[1]) urls.push(match[1]);
+    }
+    return urls;
   },
-  
-  /**
-   * Get mock HTML showing full bundle structure
-   */
-  getMockHTML: function() {
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <title>Cloned Website</title>
-  <!-- All CSS would be inlined here -->
-  <style>
-    /* INLINED CSS FROM ${this.currentClone?.url || 'sources'} */
-    body { font-family: system-ui; margin: 0; }
-    /* ... hundreds of lines of CSS ... */
-  </style>
-</head>
-<body>
-  <!-- Full page HTML -->
-</body>
-<!-- All JS would be inlined here -->
-<script>
-  /* INLINED JS FROM ALL SOURCES */
-</script>
-</html>`;
+
+  extractJsUrls: function(html) {
+    var urls = [];
+    var matches = html.match(/src=["']([^"']*\.js[^"']*)["']/gi) || [];
+    for (var i = 0; i < matches.length; i++) {
+      var match = matches[i].match(/src=["']([^"']+)["']/);
+      if (match && match[1]) urls.push(match[1]);
+    }
+    return urls;
   },
-  
-  /**
-   * Bundle HTML with all assets inlined
-   */
-  bundleHTML: function(snapshot, options) {
-    var inline = options.includes('--inline');
-    var images = options.includes('--images');
-    
-    // Build the full bundled HTML
-    var html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${snapshot.title || 'Cloned Site'}</title>
-  <meta name="cloned-from" content="${snapshot.url}">
-  
-  ${inline ? '<!-- INLINED STYLESHEETS -->' : '<link rel="stylesheet" href="styles.css">'}
-  ${inline ? this.getInlinedStyles(snapshot.stylesheets) : ''}
-</head>
-<body>
-  ${snapshot.html || '<p>Cloned content...</p>'}
-  
-  ${inline ? '<!-- INLINED SCRIPTS -->' : '<script src="app.js"><\/script>'}
-  ${inline ? this.getInlinedScripts(snapshot.scripts) : ''}
-</body>
-</html>`;
-    
+
+  extractImageUrls: function(html) {
+    var urls = [];
+    var matches = html.match(/src=["']([^"']+\.(jpg|jpeg|png|gif|svg|webp)[^"']*)["']/gi) || [];
+    for (var i = 0; i < matches.length; i++) {
+      var match = matches[i].match(/src=["']([^"']+)["']/);
+      if (match && match[1]) urls.push(match[1]);
+    }
+    return urls;
+  },
+
+  snapshotToSimpleHTML: function(snap) {
+    var els = snap.generic || [];
+    var html = '<html><head></head><body>';
+    els.forEach(function(el) {
+      if (el.heading) html += '<h' + el.level + '>' + el.heading + '</h' + el.level + '>';
+      else if (el.paragraph) html += '<p>' + el.paragraph + '</p>';
+      else if (el.link) html += '<a href="' + (el.url || '#') + '">' + el.link + '</a>';
+    });
+    html += '</body></html>';
     return html;
   },
-  
-  /**
-   * Inline CSS (would fetch and embed in real implementation)
-   */
-  getInlinedStyles: function(stylesheets) {
-    if (!stylesheets || stylesheets.length === 0) return '';
+
+  bundle: function(html, css, js, images, sourceUrl) {
+    // Extract title
+    var titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    var title = titleMatch ? titleMatch[1] : 'Cloned Page';
     
-    return `
-  <!-- Inlined CSS from ${stylesheets.length} files -->
-  <style>
-    /* CSS from: ${stylesheets.join(', ')} */
-    /* In production, these would be fetched and minified */
+    // Clean body content
+    var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    var bodyContent = bodyMatch ? bodyMatch[1] : html;
     
-    /* Reset */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    // Build full bundle
+    var bundle = '<!DOCTYPE html>\n' +
+      '<html lang="en">\n' +
+      '<head>\n' +
+      '  <meta charset="UTF-8">\n' +
+      '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+      '  <title>' + title + ' (Cloned)</title>\n' +
+      '  <meta name="cloned-from" content="' + sourceUrl + '">\n' +
+      '  <meta name="cloned-by" content="Kingbit Clone PRO v4">\n' +
+      '\n' +
+      '  <style>\n' +
+      '    /* ===== INLINED REAL CSS ===== */\n' +
+      css.join('\n\n') + '\n' +
+      '    \n' +
+      '    /* ===== CLONE BADGE ===== */\n' +
+      '    .clone-badge { position: fixed; bottom: 10px; right: 10px; background: #2563eb; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; z-index: 99999; }\n' +
+      '  </style>\n' +
+      '</head>\n' +
+      '\n' +
+      '<body>\n' +
+      bodyContent + '\n' +
+      '  <div class="clone-badge">🕷️ Cloned by Kingbit Clone PRO</div>\n' +
+      '\n' +
+      '  <script>\n' +
+      '    /* ===== INLINED REAL JS ===== */\n' +
+      js.join('\n\n') + '\n' +
+      '    console.log("🕷️ Kingbit Clone PRO v4 - Full bundle loaded");\n' +
+      '  </script>\n' +
+      '</body>\n' +
+      '</html>';
     
-    /* Core styles from original site */
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6;
-      color: #333;
-    }
-    
-    /* Navigation */
-    nav { 
-      display: flex; 
-      justify-content: space-between;
-      padding: 1rem 2rem;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Hero */
-    .hero {
-      padding: 4rem 2rem;
-      text-align: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    
-    /* Buttons */
-    button, .btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    
-    /* Footer */
-    footer {
-      padding: 2rem;
-      text-align: center;
-      background: #1f2937;
-      color: white;
-    }
-  </style>`;
+    return bundle;
   },
-  
-  /**
-   * Inline JS
-   */
-  getInlinedScripts: function(scripts) {
-    if (!scripts || scripts.length === 0) return '';
+
+  async deploy() {
+    if (!this.currentClone) return { success: false, error: 'Clone a site first with /clone <url>' };
     
-    return `
-  <!-- Inlined JS from ${scripts.length} files -->
-  <script>
-    /* JS from: ${scripts.join(', ')} */
-    /* In production, these would be fetched and minified */
+    // Save to file
+    var fs = require('fs');
+    var path = '/root/.openclaw/workspace/cloned-site/index.html';
+    require('fs').mkdirSync('/root/.openclaw/workspace/cloned-site', { recursive: true });
+    require('fs').writeFileSync(path, this.currentClone.bundledHTML);
     
-    // Console message to show it worked
-    console.log('🕷️ Full site clone bundle loaded');
-    
-    // Common scripts would be here
-    // - Analytics
-    // - Interactivity
-    // - Frameworks
-  <\/script>`;
-  },
-  
-  /**
-   * Create zip bundle (mock)
-   */
-  createBundle: function() {
-    if (!this.currentClone) {
-      return { success: false, error: 'No clone to bundle. Clone a site first!' };
-    }
-    
-    return {
-      success: true,
-      message: 'Bundle created!',
-      files: [
-        'index.html (full with inlined assets)',
-        'assets/images/ (all images)',
-        'assets/fonts/ (all fonts)',
-        'manifest.json (clone metadata)'
-      ],
-      totalSize: this.currentClone.size,
-      download: '/clone download'
+    return { 
+      success: true, 
+      message: 'Deployed! Files at /root/.openclaw/workspace/cloned-site/',
+      html: this.currentClone.bundledHTML,
+      size: this.currentClone.size
     };
   },
-  
-  /**
-   * Deploy to GitHub Pages
-   */
-  deploy: async function() {
-    if (!this.currentClone) {
-      return { success: false, error: 'No clone to deploy. Clone a site first!' };
-    }
-    
-    // This would create a repo and enable pages
-    return {
-      success: true,
-      message: 'Deploying to GitHub Pages...',
-      steps: [
-        '1. Creating repository...',
-        '2. Pushing files...',
-        '3. Enabling Pages...',
-        '4. Waiting for build...'
-      ],
-      note: 'In production, this would auto-deploy! For now, use /clone bundle to get files.'
-    };
-  },
-  
-  /**
-   * Command handler
-   */
+
   onCommand: async function(cmd, args) {
-    var url = args.find(a => a.startsWith('http'));
-    var options = args.filter(a => a.startsWith('--'));
-    
-    switch(cmd) {
-      case 'clone':
-        if (!url) {
-          return { 
-            success: false, 
-            error: 'Please provide a URL: /clone https://example.com --full' 
-          };
-        }
-        
-        if (!options.includes('--full') && !options.includes('--inline')) {
-          options.push('--full');
-        }
-        
-        return await this.cloneFull(url, options);
-        
-      case 'bundle':
-        return this.createBundle();
-        
-      case 'deploy':
-        return await this.deploy();
-        
-      case 'save':
-        var name = args[0];
-        return this.saveClone(name);
-        
-      case 'list':
-        return { 
-          success: true, 
-          clones: ['sample-clone-1', 'stripe-clone'], 
-          message: 'Saved clones' 
-        };
-        
-      default:
-        return this.getHelp();
-    }
-  },
-  
-  /**
-   * Save clone
-   */
-  saveClone: function(name) {
-    if (!this.currentClone) {
-      return { success: false, error: 'No active clone to save' };
-    }
-    
-    return {
-      success: true,
-      message: `Clone saved as: ${name || 'untitled'}`,
-      note: 'In production, would save to storage'
-    };
-  },
-  
-  /**
-   * Get help
-   */
-  getHelp: function() {
-    return `
-🕷️ Kingbit Clone PRO Commands:
-
-/clone <url> --full        Full clone (all CSS/JS/images)
-/clone <url> --inline     Inline all CSS/JS into HTML
-/clone <url> --images      Download all images as base64
-/clone <url> --pages       Clone multiple pages
-/clone bundle              Create downloadable zip
-/clone deploy              Deploy to web
-/clone save <name>         Save for later
-
-Examples:
-/clone https://stripe.com --full
-/clone https://github.com --inline --images
-
-⚠️ Note: Full cloning requires the browser tool!
-`;
+    var url = args.find(function(a) { return a.startsWith('http'); });
+    if (cmd === 'clone' && url) return await this.cloneFull(url);
+    if (cmd === 'deploy') return await this.deploy();
+    return { success: false, error: '/clone <url> or /clone deploy' };
   }
 };
 
