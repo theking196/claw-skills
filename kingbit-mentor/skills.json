@@ -1,0 +1,23 @@
+{
+  "schema": "https://openclaw.ai/skill/manifest/v1",
+  "skill": {
+    "name": "kingbit-mentor",
+    "version": "1.0.0",
+    "description": "Wise mentor with time-based and context-aware wisdom",
+    "author": "Kingbit",
+    "category": "lifestyle",
+    "tags": ["wisdom", "mentor", "advice", "motivation", "philosophy"],
+    "platforms": ["openclaw"],
+    "files": {
+      "main": "index.js",
+      "controller": "mentor.js"
+    },
+    "commands": [
+      {
+        "name": "mentor",
+        "description": "Get wise mentor advice",
+        "usage": "/mentor or /mentor <type> or /mentor I'm <situation>"
+      }
+    ]
+  }
+}

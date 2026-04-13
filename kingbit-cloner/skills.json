@@ -1,0 +1,24 @@
+{
+  "schema": "https://openclaw.ai/skill/manifest/v1",
+  "skill": {
+    "name": "kingbit-cloner",
+    "version": "1.0.0",
+    "description": "Clone websites and create deployable HTML/CSS/JS templates",
+    "author": "Kingbit",
+    "category": "utilities",
+    "tags": ["clone", "web", "template", "html", "deploy"],
+    "permissions": ["http"],
+    "platforms": ["openclaw"],
+    "files": {
+      "main": "index.js",
+      "controller": "clone.js"
+    },
+    "commands": [
+      {
+        "name": "clone",
+        "description": "Clone websites and create templates",
+        "usage": "/clone <url> or /clone create <template>"
+      }
+    ]
+  }
+}
